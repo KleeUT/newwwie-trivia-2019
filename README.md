@@ -1,6 +1,5 @@
-# Trivia Servr
-App for Newwwie Trivia 2019. 
-
+# Trivia Server
+Server for Newwwie Trivia 2019 trivia app. 
 
 This is designed to run as a SAM app on AWS.
 It provides a Web Socket API to push changes from the DynamoDB databae to the client with the current question 
