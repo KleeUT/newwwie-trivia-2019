@@ -11,6 +11,42 @@ Globals:
     Timeout: 3
 
 Resources:
+  ConnectFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambdas/
+      Handler: build/connectLambda.handler
+      Runtime: nodejs10.x
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable}
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
+      Environment:
+        Variables:
+            PascalCase: "pascal"
+            SOME_VARIABLE: "SOMETHING"
+            DYNAMO_TABLE: !Ref TriviaTable
+  ConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - MyWebSocketApi
+      - ConnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ConnectFunction
+      Principal: apigateway.amazonaws.com
+  ConnectLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref MyWebSocketApi
+      Description: On Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: 
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectFunction.Arn}/invocations
+
   SocketLoggingFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -26,9 +62,58 @@ Resources:
         Stream:
           Type: DynamoDB
           Properties:
-            Stream: !GetAtt ConnectionsTable.StreamArn
+            Stream: !GetAtt TriviaTable.StreamArn
             BatchSize: 100
             StartingPosition: TRIM_HORIZON
+  SocketLoggingPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - MyWebSocketApi
+      - SocketLoggingFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SocketLoggingFunction
+      Principal: apigateway.amazonaws.com 
+  SocketLoggingIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref MyWebSocketApi
+      Description: Test Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: 
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SocketLoggingFunction.Arn}/invocations
+          
+  DefaultFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambdas/
+      Handler: build/defaultLambda.handler
+      Runtime: nodejs10.x
+      Policies:
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
+  DefaultPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - MyWebSocketApi
+      - DefaultFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DefaultFunction
+      Principal: apigateway.amazonaws.com 
+  DefaultIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref MyWebSocketApi
+      Description: Test Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: 
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DefaultFunction.Arn}/invocations
+
   NotificationFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -44,7 +129,15 @@ Resources:
                 - "execute-api:ManageConnections"
               Resource:
                 - "arn:aws:execute-api:*:*:**/@connections/*"
-  ConnectionsTable:
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt TriviaTable.StreamArn
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON
+
+  TriviaTable:
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
@@ -62,6 +155,7 @@ Resources:
         - 
           Key: "useage"
           Value: "trivia"
+
   MyWebSocketApi:
     Type: AWS::ApiGatewayV2::Api
     Properties: 
@@ -73,12 +167,12 @@ Resources:
     Properties:
       ApiId: !Ref MyWebSocketApi
       RouteKey: "$connect"
-      OperationName: ConnectRoute
       AuthorizationType: NONE
+      OperationName: ConnectRoute
       Target: !Join
         - '/'
         - - 'integrations'
-          - !Ref TestLambdaIntegration
+          - !Ref ConnectLambdaIntegration
   # ConnectRouteResponse: # TODO: not working
   #   Type: 'AWS::ApiGatewayV2::RouteResponse'
   #   Properties:
@@ -94,7 +188,7 @@ Resources:
       Target: !Join
         - '/'
         - - 'integrations'
-          - !Ref TestLambdaIntegration
+          - !Ref SocketLoggingIntegration
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -105,44 +199,30 @@ Resources:
       Target: !Join
         - '/'
         - - 'integrations'
-          - !Ref TestLambdaIntegration
+          - !Ref DefaultIntegration
   # DefaultRouteResponse: # TODO> not working
   #   Type: 'AWS::ApiGatewayV2::RouteResponse'
   #   Properties:
   #     RouteId: !Ref DefaultRoute
   #     ApiId: !Ref MyWebSocketApi
   #     RouteResponseKey: $default
-  TestLambdaIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref MyWebSocketApi
-      Description: Test Integration
-      IntegrationType: AWS_PROXY
-      IntegrationUri: 
-        Fn::Sub:
-            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SocketLoggingFunction.Arn}/invocations
+
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
     - DefaultRoute
+    - ConnectRoute
+    - DisconnectRoute
     Properties:
       ApiId: !Ref MyWebSocketApi
   Stage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
-      StageName: v1
+      StageName: v2
       Description: Version 1 'stage'
       DeploymentId: !Ref Deployment
       ApiId: !Ref MyWebSocketApi
-  PortfolioBlocksPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - MyWebSocketApi
-      - SocketLoggingFunction
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref SocketLoggingFunction
-      Principal: apigateway.amazonaws.com
+     
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
@@ -156,6 +236,12 @@ Outputs:
   SocketLoggingFunctionIamRole:
     Description: "Implicit IAM Role created for Hello World function"
     Value: !GetAtt SocketLoggingFunctionRole.Arn
+  ConnectFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt ConnectFunction.Arn
+  ConnectFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt ConnectFunctionRole.Arn
   NotificationFunction:
     Description: "Hello World Lambda Function ARN"
     Value: !GetAtt NotificationFunction.Arn
