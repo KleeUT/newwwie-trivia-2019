@@ -12,7 +12,7 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/bdf19debc6bc7909e5bc630fbeb85917
+      CodeUri: s3://kleeut-lambda/0b0a245f4fe8d9c0a46dd3c442135f18
       Handler: build/connectLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -25,8 +25,6 @@ Resources:
       - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
-          PascalCase: pascal
-          SOME_VARIABLE: SOMETHING
           DYNAMO_TABLE:
             Ref: TriviaTable
   ConnectPermission:
@@ -48,10 +46,47 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationUri:
         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectFunction.Arn}/invocations
+  DisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://kleeut-lambda/23a592d844e9ff6ecc163e2d7a8c0e6b
+      Handler: build/disconnectLambda.handler
+      Runtime: nodejs10.x
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaTable
+      - AWSLambdaFullAccess
+      - CloudWatchLogsFullAccess
+      - AmazonAPIGatewayInvokeFullAccess
+      - AmazonAPIGatewayAdministrator
+      Environment:
+        Variables:
+          DYNAMO_TABLE:
+            Ref: TriviaTable
+  DisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+    - MyWebSocketApi
+    - DisconnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: DisconnectFunction
+      Principal: apigateway.amazonaws.com
+  DisconnectLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: MyWebSocketApi
+      Description: On Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectFunction.Arn}/invocations
   SocketLoggingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/84079706f48a3ac4cbd55516ae7d33d1
+      CodeUri: s3://kleeut-lambda/d01f0ca7632ddfd4874b9eb3bce7244d
       Handler: build/loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -91,7 +126,7 @@ Resources:
   DefaultFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/c70610c0b985cf795a944baadde4a6b5
+      CodeUri: s3://kleeut-lambda/5504fd33d38c9c6bf1dfa71899373200
       Handler: build/defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -99,16 +134,6 @@ Resources:
       - CloudWatchLogsFullAccess
       - AmazonAPIGatewayInvokeFullAccess
       - AmazonAPIGatewayAdministrator
-      Events:
-        Stream:
-          Type: DynamoDB
-          Properties:
-            Stream:
-              Fn::GetAtt:
-              - TriviaTable
-              - StreamArn
-            BatchSize: 100
-            StartingPosition: TRIM_HORIZON
   DefaultPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -131,7 +156,7 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/d035ee9ac1b30c786aed2d5c24bfcf8b
+      CodeUri: s3://kleeut-lambda/676fc26d27de0dc91720f8fbdaf34c19
       Handler: build/notificationLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -143,6 +168,16 @@ Resources:
           - execute-api:ManageConnections
           Resource:
           - arn:aws:execute-api:*:*:**/@connections/*
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream:
+              Fn::GetAtt:
+              - TriviaTable
+              - StreamArn
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON
   TriviaTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -188,7 +223,7 @@ Resources:
         Fn::Join:
         - /
         - - integrations
-          - Ref: SocketLoggingIntegration
+          - Ref: DisconnectLambdaIntegration
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:

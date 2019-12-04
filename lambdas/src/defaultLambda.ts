@@ -1,4 +1,5 @@
 import { APIGatewayEvent, Context } from 'aws-lambda'
+import { DynamoDB } from 'aws-sdk'
 // const axios = require('axios')
 // const url = 'http://checkip.amazonaws.com/';
 let response;

@@ -1,6 +1,7 @@
 import { APIGatewayEvent, Context } from 'aws-lambda'
 import { DynamoDB } from 'aws-sdk'
-import { PutItemInput } from '@types/aws-sdk'
+// import {} from "@aws-"
+// import { PutItemInput } from '@types/aws-sdk'
 // const axios = require('axios')
 // const url = 'http://checkip.amazonaws.com/';
 let response;
@@ -24,8 +25,8 @@ export const handler = async (event: APIGatewayEvent, context: Context) => {
   const db = new DynamoDB({
     region: 'ap-southeast-2'
   })
-  var params: PutItemInput = {
-    TableName: process.env.DYNAMO_TABLE,
+  var params: DynamoDB.PutItemInput = {
+    TableName: process.env.DYNAMO_TABLE || "",
     Item: {
       'kid': { S: `connection:${event.requestContext.connectionId}` },
     }

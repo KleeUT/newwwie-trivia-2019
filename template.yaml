@@ -25,8 +25,6 @@ Resources:
         - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
-            PascalCase: "pascal"
-            SOME_VARIABLE: "SOMETHING"
             DYNAMO_TABLE: !Ref TriviaTable
   ConnectPermission:
     Type: AWS::Lambda::Permission
@@ -46,6 +44,40 @@ Resources:
       IntegrationUri: 
         Fn::Sub:
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectFunction.Arn}/invocations
+
+  DisconnectFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambdas/
+      Handler: build/disconnectLambda.handler
+      Runtime: nodejs10.x
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable}
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
+      Environment:
+        Variables:
+            DYNAMO_TABLE: !Ref TriviaTable
+  DisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - MyWebSocketApi
+      - DisconnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DisconnectFunction
+      Principal: apigateway.amazonaws.com
+  DisconnectLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref MyWebSocketApi
+      Description: On Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: 
+        Fn::Sub:
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectFunction.Arn}/invocations
 
   SocketLoggingFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -83,7 +115,7 @@ Resources:
       IntegrationUri: 
         Fn::Sub:
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SocketLoggingFunction.Arn}/invocations
-          
+
   DefaultFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -188,7 +220,7 @@ Resources:
       Target: !Join
         - '/'
         - - 'integrations'
-          - !Ref SocketLoggingIntegration
+          - !Ref DisconnectLambdaIntegration
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
