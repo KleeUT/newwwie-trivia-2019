@@ -1,4 +1,4 @@
-import { DynamoDBStreamEvent, Context } from 'aws-lambda'
+import { DynamoDBStreamEvent, Context, DynamoDBRecord } from 'aws-lambda'
 import fetch from 'node-fetch';
 import { ApiGatewayManagementApi, DynamoDB } from 'aws-sdk'
 import { connect } from 'http2';
@@ -22,69 +22,80 @@ const region = 'ap-southeast-2';
 const stage = "deploytest";
 const currentQuestionKey = "currentQuestion";
 const connectionPrefix = "connection:";
+const connectionKey = 'connection'
 const endpointApi = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
 
-const extractNewConnections = (event: DynamoDBStreamEvent): string[] => event.Records.map(record => {
-  if (record.eventName === "INSERT" &&
-    record.dynamodb &&
-    record.dynamodb.Keys &&
-    record.dynamodb.Keys.kid &&
-    record.dynamodb.Keys.kid.S &&
-    record.dynamodb.Keys.kid.S.startsWith(connectionPrefix)) {
-    const id = record.dynamodb.Keys.kid.S.substr(connectionPrefix.length, record.dynamodb.Keys.kid.S.length);
-    console.log(`Adding ${id}`)
-    return id;
+interface QuestionDynamoImage {
+  "question": {
+    "S": string
+  },
+  "round": {
+    "S": string
+  },
+  "break": {
+    "BOOL": boolean
+  },
+  "kid": {
+    "S": string
+  },
+  "sk": {
+    "S": string
   }
-  return undefined;
-}).filter(record => record !== undefined) as string[]
+}
+
+const isCurrentQuestionDynamoKey = (record: DynamoDBRecord): boolean => !!(record.dynamodb &&
+  record.dynamodb.Keys &&
+  record.dynamodb.Keys.kid &&
+  record.dynamodb.Keys.kid.S &&
+  record.dynamodb.Keys.kid.S === currentQuestionKey)
 
 const isItAQuestionUpdateEvent = (event: DynamoDBStreamEvent): boolean =>
   event.Records.some(record => record.eventName === "MODIFY" &&
-    record.dynamodb &&
-    record.dynamodb.Keys &&
-    record.dynamodb.Keys.kid &&
-    record.dynamodb.Keys.kid.S &&
-    record.dynamodb.Keys.kid.S === currentQuestionKey
+    isCurrentQuestionDynamoKey
   )
 
+const getNewQuestionInfoFrom = (event: DynamoDBStreamEvent): { round: Number, question: Number, break: Boolean } => {
+  const questionUpdateRecord = <QuestionDynamoImage><unknown>(((event.Records.find(isCurrentQuestionDynamoKey) || {}).dynamodb || {}).NewImage || {});
+
+  return {
+    round: Number(questionUpdateRecord.round.S),
+    question: Number(questionUpdateRecord.question.S),
+    break: questionUpdateRecord.break.BOOL
+  }
+}
 
 export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
   try {
-    console.log("EVENT:", event)
-    console.log("JOSN EVENT:", JSON.stringify(event))
-    console.log("CONTEXT:", context)
-    const existingConnections = await allActiveConnections();
-    console.log('connections,', existingConnections)
-    const newConnections = extractNewConnections(event);
-    if (newConnections.length === 0) {
-      console.log("No records found")
+    // console.log("JOSN EVENT:", JSON.stringify(event))
+    if (!isItAQuestionUpdateEvent(event)) {
       return "done";
     }
-    // const connectionId = 'DpmkcdIrywMAbNQ='
-
-    // const connectionsUrl = `${endpointApi}/@connections`;
-    // const withId = `${connectionsUrl}/${connectionId}`;
+    const activeConnectionsPromise = allActiveConnections();
+    const newQuestion = getNewQuestionInfoFrom(event);
+    console.log("New Question:", newQuestion)
 
     const manApi = new ApiGatewayManagementApi({
       apiVersion: '2018-11-29',
       endpoint: endpointApi
     });
 
-    const sendPromises = newConnections.map(connection => {
+    const existingConnections = await activeConnectionsPromise;
+    console.log('connections,', existingConnections)
+
+
+
+
+    const sendPromises = existingConnections.map(connection => {
       const params: ApiGatewayManagementApi.PostToConnectionRequest = {
         ConnectionId: connection || "",
         Data: JSON.stringify({ some: `Welcome ${connection}` })
       }
       console.log(`attempting to send welcome message to ${connection}, with api url ${endpointApi}`)
-      return manApi.postToConnection(params).promise();
-      // return fetch(withId).then(result => {
-      //     console.log(result.status)
-      //     return result.json();
-      // }).then(jsonResponse => {
-      //     console.log(jsonResponse)
-      // })
+      return manApi.postToConnection(params).promise().catch((err) => {
+        console.log(`Couldnt send to connection ${connection}`, err)
+      });
     })
-    console.log(`Waiting for ${newConnections.length} functions to finish`)
+    console.log(`Waiting for ${existingConnections.length} functions to finish`)
     await Promise.all(sendPromises);
     console.log("Done")
     return "HAPPY DAYS"
@@ -92,32 +103,14 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
     console.error("Something went wrong", err)
     return err;
   }
-  // return proms
-  //   .then(data => console.log(data))
-  //   .then(() => {
-  //     try {
-  //       // const ret = await axios(url);
-  //       let response = {
-  //         'statusCode': 200,
-  //         'body': JSON.stringify({
-  //           message: 'hello world',
-  //           // location: ret.data.trim()
-  //         })
-  //       }
-  //       return response
-  //     } catch (err) {
-  //       console.log(err);
-  //       return err;
-  //     }
-  //   })
 
 };
 
 
-const allActiveConnections = async () => {
+const allActiveConnections = async (): Promise<string[]> => {
   const TableName = process.env.DYNAMO_TABLE || "";
   const db = new DynamoDB({
-    region: 'ap-southeast-2'
+    region
   });
   const dynamoResponse = await db.query({
     TableName,
@@ -125,7 +118,7 @@ const allActiveConnections = async () => {
       kid: {
         ComparisonOperator: "EQ",
         AttributeValueList: [
-          { S: 'connection' }
+          { S: connectionKey }
         ]
       },
       sk: {
@@ -135,9 +128,19 @@ const allActiveConnections = async () => {
         ]
       }
     }
-    // KeyConditionExpression: `begins_with(sk, :connectionPrefix)`,
-    // ExpressionAttributeNames: { ":connectionPrefix": connectionPrefix }
   }).promise();
   console.log(dynamoResponse.Items);
-  return dynamoResponse.Items;
+  if (dynamoResponse.Items === undefined) {
+    return [];
+  }
+  return dynamoResponse.Items.map(item => {
+    const str = ((item.sk || {}).S || connectionPrefix);
+    return str.substr(connectionPrefix.length, str.length)
+  });
 }
+
+
+[{
+  sk: { S: 'connection:EVA2Ne6_ywMCIaA=' },
+  kid: { S: 'connection' }
+}]

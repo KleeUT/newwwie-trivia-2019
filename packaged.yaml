@@ -12,7 +12,7 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/c910bb113159f7366fc234860b4d455b
+      CodeUri: s3://kleeut-lambda/3027d400be03b257337782832286deb9
       Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -49,7 +49,7 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/4591556586e68f4b55eea1fa489de441
+      CodeUri: s3://kleeut-lambda/ba868da9b53feafdeda750bd0a9fcfd5
       Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -86,7 +86,7 @@ Resources:
   SocketLoggingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/10d6634109b5013ce2ab0cfaff4dd80d
+      CodeUri: s3://kleeut-lambda/eafa1c5f1146bd157a7b303a503773d0
       Handler: loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -126,7 +126,7 @@ Resources:
   DefaultFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/5e1b08d6e3f7983b6d7d8e9bc3c4e1ec
+      CodeUri: s3://kleeut-lambda/c541a0be10b2fd5671e54e2e3b74d1b1
       Handler: defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -156,7 +156,7 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/5ae4f4a00fe832dbddaf7f29bbec10fc
+      CodeUri: s3://kleeut-lambda/fa78ed6c3b16130ba87cd9c8d997dc12
       Handler: notificationLambda.handler
       Runtime: nodejs10.x
       Policies:

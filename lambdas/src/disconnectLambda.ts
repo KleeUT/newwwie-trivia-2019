@@ -27,7 +27,8 @@ export const handler = async (event: APIGatewayEvent, context: Context) => {
     await db.deleteItem({
       TableName,
       Key: {
-        'kid': { S: `connection:${event.requestContext.connectionId}` },
+        'kid': { S: 'connection' },
+        'sk': { S: `connection:${event.requestContext.connectionId}` },
       }
     }).promise()
     // const ret = await axios(url);
