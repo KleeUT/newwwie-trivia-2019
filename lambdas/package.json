@@ -7,15 +7,12 @@
   "author": "SAM CLI",
   "license": "MIT",
   "dependencies": {
-    "@types/aws-sdk": "^2.7.0",
-    "@types/node-fetch": "^2.5.4",
     "aws-sdk": "^2.578.0",
-    "axios": "^0.18.0",
-    "node-fetch": "^2.6.0",
-    "prettier": "^1.19.1"
+    "node-fetch": "^2.6.0"
   },
   "scripts": {
-    "test": "mocha tests/unit/",
+    "test": "jest src",
+    "test:watch": "npm t -- --watch",
     "build": "babel ./src --out-dir build --extensions \".ts,.tsx\""
   },
   "devDependencies": {
@@ -26,7 +23,9 @@
     "@babel/preset-env": "^7.7.4",
     "@babel/preset-typescript": "^7.7.4",
     "@types/aws-lambda": "^8.10.36",
-    "chai": "^4.2.0",
-    "mocha": "^6.1.4"
+    "@types/jest": "^24.0.23",
+    "@types/node-fetch": "^2.5.4",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1"
   }
 }

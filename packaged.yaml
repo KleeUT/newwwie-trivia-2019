@@ -12,8 +12,8 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/0b0a245f4fe8d9c0a46dd3c442135f18
-      Handler: build/connectLambda.handler
+      CodeUri: s3://kleeut-lambda/c910bb113159f7366fc234860b4d455b
+      Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
       - DynamoDBCrudPolicy:
@@ -49,8 +49,8 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/23a592d844e9ff6ecc163e2d7a8c0e6b
-      Handler: build/disconnectLambda.handler
+      CodeUri: s3://kleeut-lambda/4591556586e68f4b55eea1fa489de441
+      Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
       - DynamoDBCrudPolicy:
@@ -86,8 +86,8 @@ Resources:
   SocketLoggingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/d01f0ca7632ddfd4874b9eb3bce7244d
-      Handler: build/loggingLambda.handler
+      CodeUri: s3://kleeut-lambda/10d6634109b5013ce2ab0cfaff4dd80d
+      Handler: loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
       - AWSLambdaFullAccess
@@ -126,8 +126,8 @@ Resources:
   DefaultFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/5504fd33d38c9c6bf1dfa71899373200
-      Handler: build/defaultLambda.handler
+      CodeUri: s3://kleeut-lambda/5e1b08d6e3f7983b6d7d8e9bc3c4e1ec
+      Handler: defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
       - AWSLambdaFullAccess
@@ -156,10 +156,13 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/676fc26d27de0dc91720f8fbdaf34c19
-      Handler: build/notificationLambda.handler
+      CodeUri: s3://kleeut-lambda/5ae4f4a00fe832dbddaf7f29bbec10fc
+      Handler: notificationLambda.handler
       Runtime: nodejs10.x
       Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaTable
       - AWSLambdaExecute
       - Version: '2012-10-17'
         Statement:
@@ -168,6 +171,10 @@ Resources:
           - execute-api:ManageConnections
           Resource:
           - arn:aws:execute-api:*:*:**/@connections/*
+      Environment:
+        Variables:
+          DYNAMO_TABLE:
+            Ref: TriviaTable
       Events:
         Stream:
           Type: DynamoDB
@@ -184,10 +191,14 @@ Resources:
       AttributeDefinitions:
       - AttributeName: kid
         AttributeType: S
+      - AttributeName: sk
+        AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
       - AttributeName: kid
         KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
       StreamSpecification:
         StreamViewType: NEW_IMAGE
       Tags:

@@ -1,6 +1,6 @@
 import { DynamoDBStreamEvent, Context } from 'aws-lambda'
 import fetch from 'node-fetch';
-import { ApiGatewayManagementApi } from 'aws-sdk'
+import { ApiGatewayManagementApi, DynamoDB } from 'aws-sdk'
 import { connect } from 'http2';
 // const axios = require('axios')
 // const url = 'http://checkip.amazonaws.com/';
@@ -20,32 +20,48 @@ import { connect } from 'http2';
 const apiId = "cydrqavlhh"
 const region = 'ap-southeast-2';
 const stage = "deploytest";
-const connectionPrefix = "connection:"
+const currentQuestionKey = "currentQuestion";
+const connectionPrefix = "connection:";
+const endpointApi = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
+
+const extractNewConnections = (event: DynamoDBStreamEvent): string[] => event.Records.map(record => {
+  if (record.eventName === "INSERT" &&
+    record.dynamodb &&
+    record.dynamodb.Keys &&
+    record.dynamodb.Keys.kid &&
+    record.dynamodb.Keys.kid.S &&
+    record.dynamodb.Keys.kid.S.startsWith(connectionPrefix)) {
+    const id = record.dynamodb.Keys.kid.S.substr(connectionPrefix.length, record.dynamodb.Keys.kid.S.length);
+    console.log(`Adding ${id}`)
+    return id;
+  }
+  return undefined;
+}).filter(record => record !== undefined) as string[]
+
+const isItAQuestionUpdateEvent = (event: DynamoDBStreamEvent): boolean =>
+  event.Records.some(record => record.eventName === "MODIFY" &&
+    record.dynamodb &&
+    record.dynamodb.Keys &&
+    record.dynamodb.Keys.kid &&
+    record.dynamodb.Keys.kid.S &&
+    record.dynamodb.Keys.kid.S === currentQuestionKey
+  )
+
+
 export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
   try {
     console.log("EVENT:", event)
     console.log("JOSN EVENT:", JSON.stringify(event))
     console.log("CONTEXT:", context)
-    const newConnections = event.Records.map(record => {
-      if (record.eventName === "INSERT" &&
-        record.dynamodb &&
-        record.dynamodb.Keys &&
-        record.dynamodb.Keys.kid &&
-        record.dynamodb.Keys.kid.S &&
-        record.dynamodb.Keys.kid.S.startsWith(connectionPrefix)) {
-        const id = record.dynamodb.Keys.kid.S.substr(connectionPrefix.length, record.dynamodb.Keys.kid.S.length);
-        console.log(`Adding ${id}`)
-        return id;
-      }
-      return undefined;
-    }).filter(record => record)
+    const existingConnections = await allActiveConnections();
+    console.log('connections,', existingConnections)
+    const newConnections = extractNewConnections(event);
     if (newConnections.length === 0) {
       console.log("No records found")
       return "done";
     }
     // const connectionId = 'DpmkcdIrywMAbNQ='
 
-    const endpointApi = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
     // const connectionsUrl = `${endpointApi}/@connections`;
     // const withId = `${connectionsUrl}/${connectionId}`;
 
@@ -97,31 +113,31 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
 
 };
 
-const theEvent: DynamoDBStreamEvent = {
-  "Records": [
-    {
-      "eventID": "d68b423012d5b3bce24751421a43e772",
-      "eventName": "INSERT",
-      "eventVersion": "1.1",
-      "eventSource": "aws:dynamodb",
-      "awsRegion": "ap-southeast-2",
-      "dynamodb": {
-        "ApproximateCreationDateTime": 1575369045,
-        "Keys": {
-          "kid": {
-            "S": "connection:EH3k_c_zSwMCGqw="
-          }
-        },
-        "NewImage": {
-          "kid": {
-            "S": "connection:EH3k_c_zSwMCGqw="
-          }
-        },
-        "SequenceNumber": "3950500000000007790329561",
-        "SizeBytes": 60,
-        "StreamViewType": "NEW_IMAGE"
+
+const allActiveConnections = async () => {
+  const TableName = process.env.DYNAMO_TABLE || "";
+  const db = new DynamoDB({
+    region: 'ap-southeast-2'
+  });
+  const dynamoResponse = await db.query({
+    TableName,
+    KeyConditions: {
+      kid: {
+        ComparisonOperator: "EQ",
+        AttributeValueList: [
+          { S: 'connection' }
+        ]
       },
-      "eventSourceARN": "arn:aws:dynamodb:ap-southeast-2:624538342145:table/sam-socket-test-TriviaTable-1379EFINODOOZ/stream/2019-12-02T10:32:59.139"
+      sk: {
+        ComparisonOperator: "BEGINS_WITH",
+        AttributeValueList: [
+          { S: connectionPrefix }
+        ]
+      }
     }
-  ]
+    // KeyConditionExpression: `begins_with(sk, :connectionPrefix)`,
+    // ExpressionAttributeNames: { ":connectionPrefix": connectionPrefix }
+  }).promise();
+  console.log(dynamoResponse.Items);
+  return dynamoResponse.Items;
 }

@@ -14,8 +14,8 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: lambdas/
-      Handler: build/connectLambda.handler
+      CodeUri: lambdas/build
+      Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable}
@@ -48,8 +48,8 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: lambdas/
-      Handler: build/disconnectLambda.handler
+      CodeUri: lambdas/build
+      Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable}
@@ -82,8 +82,8 @@ Resources:
   SocketLoggingFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: lambdas/
-      Handler: build/loggingLambda.handler
+      CodeUri: lambdas/build
+      Handler: loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
         - AWSLambdaFullAccess
@@ -119,8 +119,8 @@ Resources:
   DefaultFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: lambdas/
-      Handler: build/defaultLambda.handler
+      CodeUri: lambdas/build
+      Handler: defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
         - AWSLambdaFullAccess
@@ -149,10 +149,11 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: lambdas/
-      Handler: build/notificationLambda.handler
+      CodeUri: lambdas/build
+      Handler: notificationLambda.handler
       Runtime: nodejs10.x
       Policies: 
+        - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable}
         - AWSLambdaExecute # Managed Policy
         - Version: '2012-10-17' # Policy Document
           Statement:
@@ -161,6 +162,9 @@ Resources:
                 - "execute-api:ManageConnections"
               Resource:
                 - "arn:aws:execute-api:*:*:**/@connections/*"
+      Environment:
+        Variables:
+            DYNAMO_TABLE: !Ref TriviaTable
       Events:
         Stream:
           Type: DynamoDB
@@ -176,11 +180,17 @@ Resources:
       - 
         AttributeName: "kid"
         AttributeType: "S"
+      - 
+        AttributeName: "sk"
+        AttributeType: "S"
       BillingMode: PAY_PER_REQUEST
       KeySchema: 
         - 
           AttributeName: kid
           KeyType: HASH
+        - 
+          AttributeName: sk
+          KeyType: RANGE
       StreamSpecification:  
         StreamViewType: NEW_IMAGE
       Tags: 

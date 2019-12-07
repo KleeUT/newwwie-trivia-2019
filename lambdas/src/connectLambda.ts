@@ -28,7 +28,8 @@ export const handler = async (event: APIGatewayEvent, context: Context) => {
   var params: DynamoDB.PutItemInput = {
     TableName: process.env.DYNAMO_TABLE || "",
     Item: {
-      'kid': { S: `connection:${event.requestContext.connectionId}` },
+      'kid': { S: `connection` },
+      'sk': { S: `connection:${event.requestContext.connectionId}` },
     }
   };
   try {
