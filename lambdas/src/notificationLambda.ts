@@ -43,6 +43,8 @@ interface QuestionDynamoImage {
   }
 }
 
+interface UpdatedQuestion { round: Number, question: Number, break: Boolean }
+
 const isCurrentQuestionDynamoKey = (record: DynamoDBRecord): boolean => !!(record.dynamodb &&
   record.dynamodb.Keys &&
   record.dynamodb.Keys.kid &&
@@ -54,7 +56,7 @@ const isItAQuestionUpdateEvent = (event: DynamoDBStreamEvent): boolean =>
     isCurrentQuestionDynamoKey
   )
 
-const getNewQuestionInfoFrom = (event: DynamoDBStreamEvent): { round: Number, question: Number, break: Boolean } => {
+const getNewQuestionInfoFrom = (event: DynamoDBStreamEvent): UpdatedQuestion => {
   const questionUpdateRecord = <QuestionDynamoImage><unknown>(((event.Records.find(isCurrentQuestionDynamoKey) || {}).dynamodb || {}).NewImage || {});
 
   return {
@@ -72,12 +74,18 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
     }
     const activeConnectionsPromise = allActiveConnections();
     const newQuestion = getNewQuestionInfoFrom(event);
+    const userFacingQuetionPromise = getQuestion(newQuestion);
     console.log("New Question:", newQuestion)
 
     const manApi = new ApiGatewayManagementApi({
       apiVersion: '2018-11-29',
       endpoint: endpointApi
     });
+
+
+
+    const userFacingQuetion = await userFacingQuetionPromise;
+    console.log("userFacingQuetion", userFacingQuetion);
 
     const existingConnections = await activeConnectionsPromise;
     console.log('connections,', existingConnections)
@@ -88,7 +96,7 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
     const sendPromises = existingConnections.map(connection => {
       const params: ApiGatewayManagementApi.PostToConnectionRequest = {
         ConnectionId: connection || "",
-        Data: JSON.stringify({ some: `Welcome ${connection}` })
+        Data: JSON.stringify(userFacingQuetion)
       }
       console.log(`attempting to send welcome message to ${connection}, with api url ${endpointApi}`)
       return manApi.postToConnection(params).promise().catch((err) => {
@@ -106,6 +114,39 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
 
 };
 
+interface UserFacingQuetion {
+  title: String
+  body: String
+  break: Boolean
+}
+
+const getQuestion = async (question: UpdatedQuestion): Promise<UserFacingQuetion> => {
+  if (question.break) {
+    return {
+      title: "Break",
+      body: "",
+      break: question.break
+    }
+  }
+  const TableName = process.env.DYNAMO_TABLE || "";
+  const db = new DynamoDB({
+    region
+  });
+  const item = await db.getItem({
+    TableName,
+    Key: {
+      kid: { S: "question" },
+      sk: { S: `r${question.round}:q${question.question}` }
+    }
+  }).promise()
+  console.log("Question Item", item);
+
+  return {
+    title: `Round ${question.round} Question: ${question.question}`,
+    body: (item.Item || {}).markdown.S || "",
+    break: false
+  }
+}
 
 const allActiveConnections = async (): Promise<string[]> => {
   const TableName = process.env.DYNAMO_TABLE || "";
