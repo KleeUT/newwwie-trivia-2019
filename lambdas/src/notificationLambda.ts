@@ -75,7 +75,7 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
     const activeConnectionsPromise = allActiveConnections();
     const newQuestion = getNewQuestionInfoFrom(event);
     const userFacingQuetionPromise = getQuestion(newQuestion);
-    console.log("New Question:", newQuestion)
+    // console.log("New Question:", newQuestion)
 
     const manApi = new ApiGatewayManagementApi({
       apiVersion: '2018-11-29',
@@ -85,10 +85,10 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
 
 
     const userFacingQuetion = await userFacingQuetionPromise;
-    console.log("userFacingQuetion", userFacingQuetion);
+    // console.log("userFacingQuetion", userFacingQuetion);
 
     const existingConnections = await activeConnectionsPromise;
-    console.log('connections,', existingConnections)
+    // console.log('connections,', existingConnections)
 
 
 
@@ -99,9 +99,12 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
         Data: JSON.stringify(userFacingQuetion)
       }
       console.log(`attempting to send welcome message to ${connection}, with api url ${endpointApi}`)
-      return manApi.postToConnection(params).promise().catch((err) => {
-        console.log(`Couldnt send to connection ${connection}`, err)
-      });
+      return manApi.postToConnection(params).promise()
+        .then((response) => console.log(`done sending to ${connection}`, response))
+        .catch((err) => {
+          console.log(`Couldnt send to connection ${connection}`, err)
+          removeConnectionOnFailure(connection);
+        });
     })
     console.log(`Waiting for ${existingConnections.length} functions to finish`)
     await Promise.all(sendPromises);
@@ -118,6 +121,27 @@ interface UserFacingQuetion {
   title: String
   body: String
   break: Boolean
+}
+
+const removeConnectionOnFailure = async (connectionId: string): Promise<void> => {
+  try {
+    const TableName = process.env.DYNAMO_TABLE || "";
+    const db = new DynamoDB({
+      region: 'ap-southeast-2'
+    });
+    await db.deleteItem({
+      TableName,
+      Key: {
+        'kid': { S: 'connection' },
+        'sk': { S: `connection:${connectionId}` },
+      }
+    }).promise()
+    console.log(`Removed connection ${connectionId}`)
+    // const ret = await axios(url);
+  } catch (err) {
+    console.log(err);
+    return err;
+  }
 }
 
 const getQuestion = async (question: UpdatedQuestion): Promise<UserFacingQuetion> => {
@@ -142,7 +166,7 @@ const getQuestion = async (question: UpdatedQuestion): Promise<UserFacingQuetion
   console.log("Question Item", item);
 
   return {
-    title: `Round ${question.round} Question: ${question.question}`,
+    title: `Round: ${question.round} Question: ${question.question}`,
     body: (item.Item || {}).markdown.S || "",
     break: false
   }
@@ -170,7 +194,7 @@ const allActiveConnections = async (): Promise<string[]> => {
       }
     }
   }).promise();
-  console.log(dynamoResponse.Items);
+  // console.log(dynamoResponse.Items);
   if (dynamoResponse.Items === undefined) {
     return [];
   }
@@ -179,9 +203,3 @@ const allActiveConnections = async (): Promise<string[]> => {
     return str.substr(connectionPrefix.length, str.length)
   });
 }
-
-
-[{
-  sk: { S: 'connection:EVA2Ne6_ywMCIaA=' },
-  kid: { S: 'connection' }
-}]

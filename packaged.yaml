@@ -7,12 +7,12 @@ Description: 'sam-app
   '
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 900
 Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/e8de045e1f12674939d00e1497ca16dc
+      CodeUri: s3://kleeut-lambda/3a4844625436a5c74df57aba6ccc7ef6
       Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -49,7 +49,7 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/63b3b845b4b739b9700e6cb7a74f64c8
+      CodeUri: s3://kleeut-lambda/3c00f740ea9da81d4bf02a9c20dc261a
       Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -86,7 +86,7 @@ Resources:
   SocketLoggingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/b9c842e4f6c84f3ede6175c5e57b5d57
+      CodeUri: s3://kleeut-lambda/d8e52d62c67997decb422584572570a8
       Handler: loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -126,7 +126,7 @@ Resources:
   DefaultFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/91d5329480c743d3af57e02f8a6f9091
+      CodeUri: s3://kleeut-lambda/f22d75fc66ef112fb3154f44e85ea730
       Handler: defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
@@ -156,7 +156,7 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/fa74aa55cea09142634f16986a280f00
+      CodeUri: s3://kleeut-lambda/a48e071bf409affd167f90987c83eb43
       Handler: notificationLambda.handler
       Runtime: nodejs10.x
       Policies:

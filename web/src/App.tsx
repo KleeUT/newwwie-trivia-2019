@@ -10,7 +10,7 @@ interface WsQuestionFormat {
 }
 
 const websocketUrl = "wss://cydrqavlhh.execute-api.ap-southeast-2.amazonaws.com/deploytest";
-let exampleSocket
+let exampleSocket = new WebSocket(websocketUrl);
 const createSocket = ({setQuestion, setConnected}:{
   setQuestion:React.Dispatch<React.SetStateAction<{
     title: string;
@@ -19,7 +19,7 @@ const createSocket = ({setQuestion, setConnected}:{
 }>>
 setConnected:React.Dispatch<React.SetStateAction<boolean>>
 }) =>{
-  exampleSocket = new WebSocket(websocketUrl);
+  
 
   exampleSocket.onmessage = ((e:MessageEvent) => {
     console.log(e)
@@ -57,7 +57,7 @@ const App: React.FC = () => {
 }
 
 const PickDisplay = ({question}:{question: WsQuestionFormat}) =>{
-  if(question.break){
+  if(question.break ){
     return <BreakDisplay />
   }
   return <QuestionDisplay title={question.title} markdown={question.body} />
