@@ -11,4 +11,4 @@ call sam build
 echo ----------build done ------------
 call sam package --output-template-file packaged.yaml --s3-bucket kleeut-lambda
 echo -----------package done ---------------
-call sam deploy --template-file .\packaged.yaml --region ap-southeast-2 --capabilities CAPABILITY_IAM --stack-name sam-socket-test
+call sam deploy --template-file .\packaged.yaml --region ap-southeast-2 --capabilities CAPABILITY_IAM --stack-name sam-socket-test-directory-change
