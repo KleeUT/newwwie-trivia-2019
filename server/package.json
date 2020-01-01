@@ -13,7 +13,8 @@
   "scripts": {
     "test": "jest src",
     "test:watch": "npm t -- --watch",
-    "build": "babel ./src --out-dir build --extensions \".ts,.tsx\""
+    "build": "babel ./src --out-dir build --extensions \".ts,.tsx\"",
+    "prettier:write": "prettier --write \"{src,__{tests,mocks}__}/**/*.ts\""
   },
   "devDependencies": {
     "@babel/cli": "^7.7.4",
@@ -26,6 +27,6 @@
     "@types/jest": "^24.0.23",
     "@types/node-fetch": "^2.5.4",
     "jest": "^24.9.0",
-    "prettier": "^1.19.1"
+    "prettier": "1.19.1"
   }
 }
