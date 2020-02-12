@@ -1,7 +1,20 @@
-import { DynamoDBStreamEvent, Context, DynamoDBRecord } from "aws-lambda";
-import fetch from "node-fetch";
+import { DynamoDBStreamEvent, Context } from "aws-lambda";
 import { ApiGatewayManagementApi, DynamoDB } from "aws-sdk";
-import { connect } from "http2";
+import { configProvider, Config } from "../configProvider";
+import {
+  isItAQuestionUpdateEvent,
+  getNewQuestionInfoFrom
+} from "./eventInterpreter";
+import {
+  currentQuestionKey,
+  endpointApi,
+  region,
+  connectionKey,
+  connectionPrefix,
+  questionKey
+} from "./constants";
+import { UpdatedQuestion, UserFacingQuetion } from "./interfaces";
+
 // const axios = require('axios')
 // const url = 'http://checkip.amazonaws.com/';
 
@@ -17,78 +30,18 @@ import { connect } from "http2";
  * @returns {Object} object - API Gateway Lambda Proxy Output Format
  *
  */
-const apiId = "cydrqavlhh";
-const region = "ap-southeast-2";
-const stage = "deploytest";
-const currentQuestionKey = "currentQuestion";
-const connectionPrefix = "connection:";
-const connectionKey = "connection";
-const endpointApi = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
-
-interface QuestionDynamoImage {
-  question: {
-    S: string;
-  };
-  round: {
-    S: string;
-  };
-  break: {
-    BOOL: boolean;
-  };
-  kid: {
-    S: string;
-  };
-  sk: {
-    S: string;
-  };
-}
-
-interface UpdatedQuestion {
-  round: Number;
-  question: Number;
-  break: Boolean;
-}
-
-const isCurrentQuestionDynamoKey = (record: DynamoDBRecord): boolean =>
-  !!(
-    record.dynamodb &&
-    record.dynamodb.Keys &&
-    record.dynamodb.Keys.kid &&
-    record.dynamodb.Keys.kid.S &&
-    record.dynamodb.Keys.kid.S === currentQuestionKey
-  );
-
-const isItAQuestionUpdateEvent = (event: DynamoDBStreamEvent): boolean =>
-  event.Records.some(
-    record => record.eventName === "MODIFY" && isCurrentQuestionDynamoKey
-  );
-
-const getNewQuestionInfoFrom = (
-  event: DynamoDBStreamEvent
-): UpdatedQuestion => {
-  const questionUpdateRecord = <QuestionDynamoImage>(
-    (<unknown>(
-      (((event.Records.find(isCurrentQuestionDynamoKey) || {}).dynamodb || {})
-        .NewImage || {})
-    ))
-  );
-
-  return {
-    round: Number(questionUpdateRecord.round.S),
-    question: Number(questionUpdateRecord.question.S),
-    break: questionUpdateRecord.break.BOOL
-  };
-};
 
 export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
+  const config = configProvider();
+
   try {
     // console.log("JOSN EVENT:", JSON.stringify(event))
     if (!isItAQuestionUpdateEvent(event)) {
       return "done";
     }
-    const activeConnectionsPromise = allActiveConnections();
+    const activeConnectionsPromise = allActiveConnections(config);
     const newQuestion = getNewQuestionInfoFrom(event);
-    const userFacingQuetionPromise = getQuestion(newQuestion);
+    const userFacingQuestionPromise = getQuestion(config, newQuestion);
     // console.log("New Question:", newQuestion)
 
     const manApi = new ApiGatewayManagementApi({
@@ -96,7 +49,7 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
       endpoint: endpointApi
     });
 
-    const userFacingQuetion = await userFacingQuetionPromise;
+    const userFacingQuetion = await userFacingQuestionPromise;
     // console.log("userFacingQuetion", userFacingQuetion);
 
     const existingConnections = await activeConnectionsPromise;
@@ -118,7 +71,7 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
         )
         .catch(err => {
           console.log(`Couldnt send to connection ${connection}`, err);
-          removeConnectionOnFailure(connection);
+          removeConnectionOnFailure(config, connection);
         });
     });
     console.log(
@@ -133,26 +86,20 @@ export const handler = async (event: DynamoDBStreamEvent, context: Context) => {
   }
 };
 
-interface UserFacingQuetion {
-  title: String;
-  body: String;
-  break: Boolean;
-}
-
 const removeConnectionOnFailure = async (
+  config: Config,
   connectionId: string
 ): Promise<void> => {
   try {
-    const TableName = process.env.DYNAMO_TABLE || "";
     const db = new DynamoDB({
       region: "ap-southeast-2"
     });
     await db
       .deleteItem({
-        TableName,
+        TableName: config.tableName,
         Key: {
-          kid: { S: "connection" },
-          sk: { S: `connection:${connectionId}` }
+          kid: { S: connectionKey },
+          sk: { S: `${connectionPrefix}${connectionId}` }
         }
       })
       .promise();
@@ -165,6 +112,7 @@ const removeConnectionOnFailure = async (
 };
 
 const getQuestion = async (
+  config: Config,
   question: UpdatedQuestion
 ): Promise<UserFacingQuetion> => {
   if (question.break) {
@@ -174,15 +122,14 @@ const getQuestion = async (
       break: question.break
     };
   }
-  const TableName = process.env.DYNAMO_TABLE || "";
   const db = new DynamoDB({
     region
   });
   const item = await db
     .getItem({
-      TableName,
+      TableName: config.tableName,
       Key: {
-        kid: { S: "question" },
+        kid: { S: questionKey },
         sk: { S: `r${question.round}:q${question.question}` }
       }
     })
@@ -196,14 +143,13 @@ const getQuestion = async (
   };
 };
 
-const allActiveConnections = async (): Promise<string[]> => {
-  const TableName = process.env.DYNAMO_TABLE || "";
+const allActiveConnections = async (config: Config): Promise<string[]> => {
   const db = new DynamoDB({
     region
   });
   const dynamoResponse = await db
     .query({
-      TableName,
+      TableName: config.tableName,
       KeyConditions: {
         kid: {
           ComparisonOperator: "EQ",
