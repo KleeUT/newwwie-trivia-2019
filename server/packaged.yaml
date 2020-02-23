@@ -1,10 +1,10 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "sam-app
+Description: 'sam-app
 
   Sample SAM Template for sam-app
 
-  "
+  '
 Globals:
   Function:
     Timeout: 900
@@ -12,17 +12,17 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/940548e0ac7a088043a34c272e16e338
+      CodeUri: s3://kleeut-lambda/26550a4f51c64a2c2599e5418133f782
       Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName:
-              Ref: TriviaTable
-        - AWSLambdaFullAccess
-        - CloudWatchLogsFullAccess
-        - AmazonAPIGatewayInvokeFullAccess
-        - AmazonAPIGatewayAdministrator
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaTable
+      - AWSLambdaFullAccess
+      - CloudWatchLogsFullAccess
+      - AmazonAPIGatewayInvokeFullAccess
+      - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -30,8 +30,8 @@ Resources:
   ConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
-      - ConnectFunction
+    - MyWebSocketApi
+    - ConnectFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -49,17 +49,17 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/c825d4c0835e884f6298138360dae6a9
+      CodeUri: s3://kleeut-lambda/5a84e48f2d497eeaf7233c6ff14e93d4
       Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName:
-              Ref: TriviaTable
-        - AWSLambdaFullAccess
-        - CloudWatchLogsFullAccess
-        - AmazonAPIGatewayInvokeFullAccess
-        - AmazonAPIGatewayAdministrator
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaTable
+      - AWSLambdaFullAccess
+      - CloudWatchLogsFullAccess
+      - AmazonAPIGatewayInvokeFullAccess
+      - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -67,8 +67,8 @@ Resources:
   DisconnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
-      - DisconnectFunction
+    - MyWebSocketApi
+    - DisconnectFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -83,94 +83,24 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationUri:
         Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectFunction.Arn}/invocations
-  SocketLoggingFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: s3://kleeut-lambda/7a5b39ccfb783236ff30ffad69ef1a6c
-      Handler: loggingLambda.handler
-      Runtime: nodejs10.x
-      Policies:
-        - AWSLambdaFullAccess
-        - CloudWatchLogsFullAccess
-        - AmazonAPIGatewayInvokeFullAccess
-        - AmazonAPIGatewayAdministrator
-      Events:
-        Stream:
-          Type: DynamoDB
-          Properties:
-            Stream:
-              Fn::GetAtt:
-                - TriviaTable
-                - StreamArn
-            BatchSize: 100
-            StartingPosition: TRIM_HORIZON
-  SocketLoggingPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - MyWebSocketApi
-      - SocketLoggingFunction
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName:
-        Ref: SocketLoggingFunction
-      Principal: apigateway.amazonaws.com
-  SocketLoggingIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId:
-        Ref: MyWebSocketApi
-      Description: Test Integration
-      IntegrationType: AWS_PROXY
-      IntegrationUri:
-        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SocketLoggingFunction.Arn}/invocations
-  DefaultFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: s3://kleeut-lambda/9f1c261756326292629f4a230392a13c
-      Handler: defaultLambda.handler
-      Runtime: nodejs10.x
-      Policies:
-        - AWSLambdaFullAccess
-        - CloudWatchLogsFullAccess
-        - AmazonAPIGatewayInvokeFullAccess
-        - AmazonAPIGatewayAdministrator
-  DefaultPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - MyWebSocketApi
-      - DefaultFunction
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName:
-        Ref: DefaultFunction
-      Principal: apigateway.amazonaws.com
-  DefaultIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId:
-        Ref: MyWebSocketApi
-      Description: Test Integration
-      IntegrationType: AWS_PROXY
-      IntegrationUri:
-        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DefaultFunction.Arn}/invocations
   NotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://kleeut-lambda/917b4ee4dc28137acfc5ea8da8bdbf94
-      Handler: notificationLambda.handler
+      CodeUri: s3://kleeut-lambda/f201e7c12447506138c359f7ec1c91de
+      Handler: notificationLambda/notificationLambda.handler
       Runtime: nodejs10.x
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName:
-              Ref: TriviaTable
-        - AWSLambdaExecute
-        - Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Action:
-                - execute-api:ManageConnections
-              Resource:
-                - arn:aws:execute-api:*:*:**/@connections/*
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaTable
+      - AWSLambdaExecute
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - arn:aws:execute-api:*:*:**/@connections/*
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -181,29 +111,29 @@ Resources:
           Properties:
             Stream:
               Fn::GetAtt:
-                - TriviaTable
-                - StreamArn
+              - TriviaTable
+              - StreamArn
             BatchSize: 100
             StartingPosition: TRIM_HORIZON
   TriviaTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: kid
-          AttributeType: S
-        - AttributeName: sk
-          AttributeType: S
+      - AttributeName: kid
+        AttributeType: S
+      - AttributeName: sk
+        AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-        - AttributeName: kid
-          KeyType: HASH
-        - AttributeName: sk
-          KeyType: RANGE
+      - AttributeName: kid
+        KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
       StreamSpecification:
         StreamViewType: NEW_IMAGE
       Tags:
-        - Key: useage
-          Value: trivia
+      - Key: useage
+        Value: trivia
   MyWebSocketApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -220,9 +150,9 @@ Resources:
       OperationName: ConnectRoute
       Target:
         Fn::Join:
-          - /
-          - - integrations
-            - Ref: ConnectLambdaIntegration
+        - /
+        - - integrations
+          - Ref: ConnectLambdaIntegration
   DisconnectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -232,28 +162,14 @@ Resources:
       OperationName: DisconnectRoute
       Target:
         Fn::Join:
-          - /
-          - - integrations
-            - Ref: DisconnectLambdaIntegration
-  DefaultRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId:
-        Ref: MyWebSocketApi
-      RouteKey: $default
-      AuthorizationType: NONE
-      OperationName: DefaultRoute
-      Target:
-        Fn::Join:
-          - /
-          - - integrations
-            - Ref: DefaultIntegration
+        - /
+        - - integrations
+          - Ref: DisconnectLambdaIntegration
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
-      - DefaultRoute
-      - ConnectRoute
-      - DisconnectRoute
+    - ConnectRoute
+    - DisconnectRoute
     Properties:
       ApiId:
         Ref: MyWebSocketApi
@@ -267,39 +183,21 @@ Resources:
       ApiId:
         Ref: MyWebSocketApi
 Outputs:
-  SocketLoggingFunction:
-    Description: Hello World Lambda Function ARN
-    Value:
-      Fn::GetAtt:
-        - SocketLoggingFunction
-        - Arn
-  SocketLoggingFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value:
-      Fn::GetAtt:
-        - SocketLoggingFunctionRole
-        - Arn
   ConnectFunction:
-    Description: Hello World Lambda Function ARN
+    Description: Web Socket connect functino
     Value:
       Fn::GetAtt:
-        - ConnectFunction
-        - Arn
-  ConnectFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
+      - ConnectFunction
+      - Arn
+  DisconnectFunction:
+    Description: Web Socket connect functino
     Value:
       Fn::GetAtt:
-        - ConnectFunctionRole
-        - Arn
+      - DisconnectFunction
+      - Arn
   NotificationFunction:
     Description: Hello World Lambda Function ARN
     Value:
       Fn::GetAtt:
-        - NotificationFunction
-        - Arn
-  NotificationFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value:
-      Fn::GetAtt:
-        - NotificationFunctionRole
-        - Arn
+      - NotificationFunction
+      - Arn
