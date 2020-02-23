@@ -1,10 +1,10 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: 'sam-app
+Description: "sam-app
 
   Sample SAM Template for sam-app
 
-  '
+  "
 Globals:
   Function:
     Timeout: 900
@@ -16,13 +16,13 @@ Resources:
       Handler: connectLambda.handler
       Runtime: nodejs10.x
       Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: TriviaTable
-      - AWSLambdaFullAccess
-      - CloudWatchLogsFullAccess
-      - AmazonAPIGatewayInvokeFullAccess
-      - AmazonAPIGatewayAdministrator
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: TriviaTable
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -30,8 +30,8 @@ Resources:
   ConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-    - MyWebSocketApi
-    - ConnectFunction
+      - MyWebSocketApi
+      - ConnectFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -53,13 +53,13 @@ Resources:
       Handler: disconnectLambda.handler
       Runtime: nodejs10.x
       Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: TriviaTable
-      - AWSLambdaFullAccess
-      - CloudWatchLogsFullAccess
-      - AmazonAPIGatewayInvokeFullAccess
-      - AmazonAPIGatewayAdministrator
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: TriviaTable
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -67,8 +67,8 @@ Resources:
   DisconnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-    - MyWebSocketApi
-    - DisconnectFunction
+      - MyWebSocketApi
+      - DisconnectFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -90,25 +90,25 @@ Resources:
       Handler: loggingLambda.handler
       Runtime: nodejs10.x
       Policies:
-      - AWSLambdaFullAccess
-      - CloudWatchLogsFullAccess
-      - AmazonAPIGatewayInvokeFullAccess
-      - AmazonAPIGatewayAdministrator
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
       Events:
         Stream:
           Type: DynamoDB
           Properties:
             Stream:
               Fn::GetAtt:
-              - TriviaTable
-              - StreamArn
+                - TriviaTable
+                - StreamArn
             BatchSize: 100
             StartingPosition: TRIM_HORIZON
   SocketLoggingPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-    - MyWebSocketApi
-    - SocketLoggingFunction
+      - MyWebSocketApi
+      - SocketLoggingFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -130,15 +130,15 @@ Resources:
       Handler: defaultLambda.handler
       Runtime: nodejs10.x
       Policies:
-      - AWSLambdaFullAccess
-      - CloudWatchLogsFullAccess
-      - AmazonAPIGatewayInvokeFullAccess
-      - AmazonAPIGatewayAdministrator
+        - AWSLambdaFullAccess
+        - CloudWatchLogsFullAccess
+        - AmazonAPIGatewayInvokeFullAccess
+        - AmazonAPIGatewayAdministrator
   DefaultPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-    - MyWebSocketApi
-    - DefaultFunction
+      - MyWebSocketApi
+      - DefaultFunction
     Properties:
       Action: lambda:InvokeFunction
       FunctionName:
@@ -160,17 +160,17 @@ Resources:
       Handler: notificationLambda.handler
       Runtime: nodejs10.x
       Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: TriviaTable
-      - AWSLambdaExecute
-      - Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Action:
-          - execute-api:ManageConnections
-          Resource:
-          - arn:aws:execute-api:*:*:**/@connections/*
+        - DynamoDBCrudPolicy:
+            TableName:
+              Ref: TriviaTable
+        - AWSLambdaExecute
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - execute-api:ManageConnections
+              Resource:
+                - arn:aws:execute-api:*:*:**/@connections/*
       Environment:
         Variables:
           DYNAMO_TABLE:
@@ -181,29 +181,29 @@ Resources:
           Properties:
             Stream:
               Fn::GetAtt:
-              - TriviaTable
-              - StreamArn
+                - TriviaTable
+                - StreamArn
             BatchSize: 100
             StartingPosition: TRIM_HORIZON
   TriviaTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-      - AttributeName: kid
-        AttributeType: S
-      - AttributeName: sk
-        AttributeType: S
+        - AttributeName: kid
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-      - AttributeName: kid
-        KeyType: HASH
-      - AttributeName: sk
-        KeyType: RANGE
+        - AttributeName: kid
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
       StreamSpecification:
         StreamViewType: NEW_IMAGE
       Tags:
-      - Key: useage
-        Value: trivia
+        - Key: useage
+          Value: trivia
   MyWebSocketApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -220,9 +220,9 @@ Resources:
       OperationName: ConnectRoute
       Target:
         Fn::Join:
-        - /
-        - - integrations
-          - Ref: ConnectLambdaIntegration
+          - /
+          - - integrations
+            - Ref: ConnectLambdaIntegration
   DisconnectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -232,9 +232,9 @@ Resources:
       OperationName: DisconnectRoute
       Target:
         Fn::Join:
-        - /
-        - - integrations
-          - Ref: DisconnectLambdaIntegration
+          - /
+          - - integrations
+            - Ref: DisconnectLambdaIntegration
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -245,15 +245,15 @@ Resources:
       OperationName: DefaultRoute
       Target:
         Fn::Join:
-        - /
-        - - integrations
-          - Ref: DefaultIntegration
+          - /
+          - - integrations
+            - Ref: DefaultIntegration
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
-    - DefaultRoute
-    - ConnectRoute
-    - DisconnectRoute
+      - DefaultRoute
+      - ConnectRoute
+      - DisconnectRoute
     Properties:
       ApiId:
         Ref: MyWebSocketApi
@@ -271,35 +271,35 @@ Outputs:
     Description: Hello World Lambda Function ARN
     Value:
       Fn::GetAtt:
-      - SocketLoggingFunction
-      - Arn
+        - SocketLoggingFunction
+        - Arn
   SocketLoggingFunctionIamRole:
     Description: Implicit IAM Role created for Hello World function
     Value:
       Fn::GetAtt:
-      - SocketLoggingFunctionRole
-      - Arn
+        - SocketLoggingFunctionRole
+        - Arn
   ConnectFunction:
     Description: Hello World Lambda Function ARN
     Value:
       Fn::GetAtt:
-      - ConnectFunction
-      - Arn
+        - ConnectFunction
+        - Arn
   ConnectFunctionIamRole:
     Description: Implicit IAM Role created for Hello World function
     Value:
       Fn::GetAtt:
-      - ConnectFunctionRole
-      - Arn
+        - ConnectFunctionRole
+        - Arn
   NotificationFunction:
     Description: Hello World Lambda Function ARN
     Value:
       Fn::GetAtt:
-      - NotificationFunction
-      - Arn
+        - NotificationFunction
+        - Arn
   NotificationFunctionIamRole:
     Description: Implicit IAM Role created for Hello World function
     Value:
       Fn::GetAtt:
-      - NotificationFunctionRole
-      - Arn
+        - NotificationFunctionRole
+        - Arn
