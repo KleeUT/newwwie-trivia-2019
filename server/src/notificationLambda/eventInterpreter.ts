@@ -1,9 +1,10 @@
 import { DynamoDBStreamEvent, DynamoDBRecord } from "aws-lambda";
-import { currentQuestionKey } from "./constants";
+import { currentQuestionKey, connectionKey } from "./constants";
 import { UpdatedQuestion, QuestionDynamoImage } from "./interfaces";
 
 enum EventType {
   QUESTION_CHANGE,
+  NEW_CONNECTION,
   OTHER
 }
 const determineEventType = (event: DynamoDBStreamEvent): EventType => {
@@ -13,6 +14,15 @@ const determineEventType = (event: DynamoDBStreamEvent): EventType => {
     )
   ) {
     return EventType.QUESTION_CHANGE;
+  }
+  if (
+    event.Records.some(
+      record =>
+        record.eventName === "INSERT" &&
+        record?.dynamodb?.Keys?.kid?.S === connectionKey
+    )
+  ) {
+    return EventType.NEW_CONNECTION;
   }
   return EventType.OTHER;
 };
@@ -28,6 +38,9 @@ const isCurrentQuestionDynamoKey = (record: DynamoDBRecord): boolean =>
 
 export const isItAQuestionUpdateEvent = (event: DynamoDBStreamEvent): boolean =>
   determineEventType(event) == EventType.QUESTION_CHANGE;
+
+export const itIsANewConnectionEvent = (event: DynamoDBStreamEvent): boolean =>
+  determineEventType(event) === EventType.NEW_CONNECTION;
 
 export const getNewQuestionInfoFrom = (
   event: DynamoDBStreamEvent

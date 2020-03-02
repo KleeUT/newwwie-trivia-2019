@@ -29,7 +29,7 @@ Resources:
   ConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
+      - TriviaWebSocketApi
       - ConnectFunction
     Properties:
       Action: lambda:InvokeFunction
@@ -38,7 +38,7 @@ Resources:
   ConnectLambdaIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       Description: On Connect Integration
       IntegrationType: AWS_PROXY
       IntegrationUri:
@@ -62,7 +62,7 @@ Resources:
   DisconnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
+      - TriviaWebSocketApi
       - DisconnectFunction
     Properties:
       Action: lambda:InvokeFunction
@@ -71,7 +71,7 @@ Resources:
   DisconnectLambdaIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       Description: On Disconnect Integration
       IntegrationType: AWS_PROXY
       IntegrationUri:
@@ -98,7 +98,7 @@ Resources:
   SocketLoggingPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
+      - TriviaWebSocketApi
       - SocketLoggingFunction
     Properties:
       Action: lambda:InvokeFunction
@@ -107,7 +107,7 @@ Resources:
   SocketLoggingIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       Description: Test Integration
       IntegrationType: AWS_PROXY
       IntegrationUri:
@@ -127,7 +127,7 @@ Resources:
   DefaultPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
-      - MyWebSocketApi
+      - TriviaWebSocketApi
       - DefaultFunction
     Properties:
       Action: lambda:InvokeFunction
@@ -136,7 +136,7 @@ Resources:
   DefaultIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       Description: Test Integration
       IntegrationType: AWS_PROXY
       IntegrationUri:
@@ -145,8 +145,8 @@ Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: build/notificationLambda
-      Handler: notificationLambda.handler
+      CodeUri: build
+      Handler: notificationLambda/notificationLambda.handler
       Runtime: nodejs10.x
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TriviaTable }
@@ -161,6 +161,7 @@ Resources:
       Environment:
         Variables:
           DYNAMO_TABLE: !Ref TriviaTable
+          API_GATEWAY_ID: !Ref TriviaWebSocketApi
       Events:
         Stream:
           Type: DynamoDB
@@ -189,16 +190,16 @@ Resources:
         - Key: "useage"
           Value: "trivia"
 
-  MyWebSocketApi:
+  TriviaWebSocketApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: MyWebSocketApi
+      Name: TriviaWebSocketApi
       ProtocolType: WEBSOCKET
       RouteSelectionExpression: "$request.body.action"
   ConnectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       RouteKey: "$connect"
       AuthorizationType: NONE
       OperationName: ConnectRoute
@@ -210,12 +211,12 @@ Resources:
   #   Type: 'AWS::ApiGatewayV2::RouteResponse'
   #   Properties:
   #     RouteId: !Ref ConnectRoute
-  #     ApiId: !Ref MyWebSocketApi
+  #     ApiId: !Ref TriviaWebSocketApi
   #     RouteResponseKey: $default
   DisconnectRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       RouteKey: "$disconnect"
       OperationName: DisconnectRoute
       Target: !Join
@@ -225,7 +226,7 @@ Resources:
   DefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
       RouteKey: "$default"
       AuthorizationType: NONE
       OperationName: DefaultRoute
@@ -237,7 +238,7 @@ Resources:
   #   Type: 'AWS::ApiGatewayV2::RouteResponse'
   #   Properties:
   #     RouteId: !Ref DefaultRoute
-  #     ApiId: !Ref MyWebSocketApi
+  #     ApiId: !Ref TriviaWebSocketApi
   #     RouteResponseKey: $default
 
   Deployment:
@@ -247,14 +248,14 @@ Resources:
       - ConnectRoute
       - DisconnectRoute
     Properties:
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
   Stage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
-      StageName: v2
+      StageName: v1
       Description: Version 1 'stage'
       DeploymentId: !Ref Deployment
-      ApiId: !Ref MyWebSocketApi
+      ApiId: !Ref TriviaWebSocketApi
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
